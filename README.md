@@ -1,72 +1,119 @@
+<div align="center">
+
 # FinanceHub
 
-Aplicativo de finanças pessoais em **Next.js + JavaScript/JSX**, Supabase/PostgreSQL, Tailwind CSS, componentes Radix no padrão shadcn/ui, Lucide, Recharts, Zod e React Hook Form.
+**Sua vida financeira, em equilíbrio.**
 
-## Executar
+Organize suas contas, acompanhe seus gastos e transforme objetivos em planos.
 
-Requer Node.js 22 ou superior.
+[Recursos](#recursos) · [Tecnologias](#tecnologias) · [Como executar](#como-executar) · [Documentação](#documentação)
+
+</div>
+
+---
+
+## Sobre o projeto
+
+O **FinanceHub** é um aplicativo web de gestão de finanças pessoais que reúne receitas, despesas, contas, cartões e planejamento em um único espaço.
+
+A proposta é ajudar você a entender para onde o dinheiro está indo, acompanhar compromissos e avaliar como as escolhas de hoje podem afetar os próximos meses. A interface utiliza português brasileiro, valores em reais e datas no padrão brasileiro.
+
+## Recursos
+
+| Área | O que você pode fazer |
+| --- | --- |
+| **Visão geral** | Acompanhar saldos, receitas, despesas, pendências e patrimônio em indicadores e gráficos. |
+| **Receitas e despesas** | Organizar lançamentos pessoais e residenciais, categorias, recorrências e pagamentos parciais. |
+| **Contas e carteiras** | Consultar saldos e extratos e registrar transferências entre suas contas. |
+| **Cartões de crédito** | Cadastrar cartões, distribuir compras parceladas e acompanhar faturas e pagamentos. |
+| **Planejamento** | Projetar o fluxo financeiro de 1 a 60 meses e comparar cenários conservador, realista e otimista. |
+| **Calendário** | Visualizar receitas previstas, despesas, atrasos e vencimentos de faturas. |
+| **Orçamentos** | Definir limites por categoria e acompanhar alertas de consumo de 80%, 90% e 100%. |
+| **Metas** | Registrar objetivos, acompanhar o valor reservado e calcular a contribuição mensal necessária. |
+| **Dívidas** | Acompanhar saldos devedores, registrar amortizações e simular antecipações. |
+| **Investimentos** | Registrar posições, aportes, resgates, rendimentos e bens manualmente. |
+| **Relatórios** | Comparar períodos, analisar categorias e exportar CSV ou salvar PDF pela impressão do navegador. |
+
+## Planeje com mais clareza
+
+O FinanceHub permite explorar perguntas do dia a dia:
+
+- Quanto ainda tenho para receber e pagar?
+- Quanto gasto com a casa e com despesas pessoais?
+- Quais parcelas comprometem os próximos meses?
+- Como uma nova despesa pode afetar meu saldo futuro?
+- Quanto preciso reservar por mês para alcançar uma meta?
+
+As simulações usam os registros cadastrados e premissas apresentadas na tela. Cenários personalizados permitem ajustar receitas, despesas e compras parceladas sem modificar os lançamentos reais.
+
+## Cuidado com os números
+
+Os cálculos distinguem **competência financeira** de **movimentação de caixa**. Uma receita prevista não aumenta o saldo disponível antes do recebimento, transferências internas não viram receitas e o pagamento de uma fatura não duplica a despesa da compra.
+
+Valores monetários são armazenados em centavos inteiros. Pagamentos parciais, estornos e recorrências possuem regras próprias, com operações transacionais no PostgreSQL e testes automatizados.
+
+## Experiência e acesso
+
+- Interface responsiva com navegação lateral e temas claro e escuro.
+- Cadastro, login e recuperação de senha pelo Supabase Auth.
+- Validação de formulários no cliente e no servidor.
+- Isolamento dos dados por usuário com Row Level Security e controle das operações no banco.
+- Análises financeiras baseadas em regras matemáticas, sem dependência de IA externa.
+
+Os investimentos são acompanhados manualmente. As projeções são estimativas; não há integração automática com bancos ou corretoras.
+
+## Tecnologias
+
+| Camada | Tecnologias |
+| --- | --- |
+| Aplicação | Next.js, React e JavaScript/JSX |
+| Interface | Tailwind CSS, Radix no padrão shadcn/ui e Lucide |
+| Gráficos | Recharts |
+| Formulários e validação | React Hook Form e Zod |
+| Backend | API Routes do Next.js e funções PostgreSQL |
+| Banco e autenticação | Supabase e PostgreSQL |
+| Testes | Vitest, PGlite e Playwright |
+| Hospedagem prevista | Vercel |
+
+## Como executar
+
+Requer **Node.js 22 ou superior** e um projeto Supabase configurado.
 
 ```bash
 npm ci
-cp .env.example .env.local
+```
+
+Crie o arquivo `.env.local` na raiz do projeto usando [.env.example](.env.example) como referência. Se o arquivo já existir, preserve seus valores.
+
+Siga o [guia de configuração](docs/SETUP.md) para preencher as variáveis, aplicar a migração e configurar os retornos de autenticação. Depois, execute:
+
+```bash
 npm run dev
 ```
 
-Abra http://localhost:3000. Sem configuração do Supabase, o aplicativo mostra a tela de preparação e **não simula conexão, autenticação ou dados financeiros**.
+Acesse **http://localhost:3000**. Sem as variáveis do Supabase, o aplicativo apresenta as instruções de preparação. Os dados financeiros começam vazios e são preenchidos pelos seus próprios registros.
 
-## Configurar Supabase
+## Documentação
 
-1. Crie ou selecione um projeto Supabase.
-2. Preencha `.env.local`:
+- [Configuração local, Supabase e hospedagem](docs/SETUP.md)
+- [Arquitetura e regras financeiras](docs/ARCHITECTURE.md)
+- [Verificação e limites conhecidos](docs/VERIFICATION.md)
+- [Migração do banco de dados](supabase/migrations/20261022222347_foundation.sql)
 
-```dotenv
-NEXT_PUBLIC_SUPABASE_URL=https://SEU_PROJETO.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
-3. Aplique `supabase/migrations/20261022222347_foundation.sql` no SQL Editor do projeto. Alternativamente, use a CLI, consultando `npx supabase link --help` e `npx supabase db push --help`, vincule o projeto correto e aplique a migração. A migração pressupõe um schema novo para o FinanceHub.
-4. Mantenha somente `public` exposto na Data API; **não exponha o schema `private`**. A migração já configura grants e RLS.
-5. Em Authentication, habilite Email, confirmação de e-mail e recuperação de senha. Configure Site URL e Redirect URLs, incluindo:
-   - `http://localhost:3000/auth/callback`
-   - `http://localhost:3000/auth/callback?next=/login?mode=update` (ou padrão autorizado `http://localhost:3000/auth/callback**` para desenvolvimento)
-   - equivalentes HTTPS do domínio de produção.
-6. Reinicie o servidor, crie a conta e confirme o e-mail. Cadastre uma conta financeira com o saldo inicial e a data correta. As categorias iniciais são criadas para o usuário; nenhum lançamento de exemplo é criado.
-
-O fluxo usa PKCE e troca do código em `/auth/callback`. Os links de e-mail devem retornar para esse callback no mesmo navegador que iniciou a solicitação. Configure SMTP e revise os limites de envio do Supabase antes de produção. Não é necessária chave administrativa em nenhuma variável do aplicativo.
-
-## Funcionalidades
-
-- Dashboard com indicadores, gráficos, filtros mensais e análises matemáticas.
-- Receitas/despesas pessoais e residenciais; categorias/subcategorias; edição, cancelamento, exclusão e pagamentos parciais.
-- Contas e carteiras, extrato, saldos calculados e transferências internas.
-- Recorrências mensais idempotentes; geração de 12 meses e extensão virtual nas projeções.
-- Cartões, limite disponível, compras parceladas, faturas, pagamentos e estornos.
-- Projeções de 1 a 60 meses, três cenários padrão e premissas personalizadas.
-- Calendário, orçamentos com alertas de 80/90/100%, metas e cálculo de aporte necessário.
-- Dívidas com amortizações, juros registrados e simulação de antecipação por prestação fixa.
-- Investimentos manuais, aportes, resgates, rendimentos, bens e patrimônio líquido.
-- Relatórios por competência e caixa, CSV e PDF **pela janela de impressão do navegador**.
-- Cadastro/login/recuperação de senha, proteção de páginas e API, tema claro/escuro e layout responsivo.
-
-Veja [arquitetura e regras financeiras](docs/ARCHITECTURE.md) e [validação e limites](docs/VERIFICATION.md).
-
-## Testes
+## Desenvolvimento
 
 ```bash
-npm test
-npm run build
-npm run test:e2e
+npm test          # Regras financeiras e testes PostgreSQL
+npm run build     # Compilação de produção
+npm run test:e2e   # Fluxo de navegador em ambiente de teste
 ```
 
-Os testes de unidade cobrem dinheiro, datas, competência/caixa, cartões, transferências, cenários e metas. Os testes SQL executam a migração em PostgreSQL embarcado (PGlite), incluindo RLS, propriedade, operações atômicas, idempotência e estornos.
+O teste de navegador utiliza autenticação simulada e um banco temporário. A autenticação real, os e-mails e o ambiente publicado precisam ser validados com o Supabase configurado.
 
-O teste E2E usa Chrome instalado, portas 3100/54329, Next.js real e um adaptador HTTP **exclusivamente de teste** para executar os RPCs reais em PGlite. O serviço de autenticação nesse teste é simulado; ele **não comprova entrega de e-mails nem configuração de Supabase Auth externo**. Dados sintéticos são restritos aos testes. Nenhuma rota de demonstração/bypass faz parte do aplicativo.
+---
 
-Webpack é utilizado nos scripts de build/dev por compatibilidade com ambientes que restringem o processo interno do Turbopack. Não é necessário TypeScript para o frontend.
+<div align="center">
 
-## Preparar Vercel
+**FinanceHub — mais clareza para suas escolhas.**
 
-Importe este diretório como projeto Next.js. Configure as mesmas variáveis em cada ambiente e a URL HTTPS correta. Instale as dependências com `npm ci` e compile com `npm run build`. Aplique a migração no Supabase correspondente e cadastre os callbacks do domínio antes de testar o login. Não publique `.env.local` e não inclua chaves `service_role`/`sb_secret`.
-
-**Nenhum projeto remoto foi criado, nenhuma migração foi aplicada remotamente e nenhum deploy foi publicado nesta entrega.** Esses serviços dependem da configuração do seu ambiente. Use um projeto de homologação para validar os fluxos reais antes de produção.
+</div>
