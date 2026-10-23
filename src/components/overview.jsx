@@ -88,10 +88,10 @@ export function Overview({ month }) {
         />
         <Stat
           label="Resultado do mês"
-          value={money(stats.result)}
-          hint="Receitas menos despesas por competência"
+          value={money(stats.resultAfterFinancing)}
+          hint="Receitas menos despesas e financiamentos pagos ou previstos no mês"
           icon={ChartNoAxesCombined}
-          tone={stats.result < 0 ? 'red' : 'green'}
+          tone={stats.resultAfterFinancing < 0 ? 'red' : 'green'}
         />
       </div>
       <div className="dashboard-grid">
@@ -131,6 +131,10 @@ export function Overview({ month }) {
         <div>
           <span>Faturas pendentes no mês</span>
           <strong>{money(stats.invoices)}</strong>
+        </div>
+        <div>
+          <span>Financiamentos pendentes no mês</span>
+          <strong>{money(stats.financingPending)}</strong>
         </div>
         <div>
           <span>Renda comprometida</span>

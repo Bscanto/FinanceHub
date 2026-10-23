@@ -264,3 +264,72 @@ describe('Planejamento', () => {
     expect(() => validateCommand({ action: 'delete', entity: 'accounts', id: 'x' })).toThrow();
   });
 });
+
+describe('Financiamentos na visão geral', () => {
+  const financed = () => {
+    const d = fixture();
+    d.transactions = [
+      {
+        id: 'salary',
+        kind: 'income',
+        amount_cents: 500000,
+        competence: '2026-10-01',
+        due_date: '2026-10-01',
+      },
+    ];
+    d.debts = [
+      {
+        id: 'car',
+        balance_cents: 1000000,
+        rate_bps: 100,
+        payment_cents: 110000,
+        due_date: '2026-10-10',
+      },
+    ];
+    return d;
+  };
+  it('inclui a parcela pendente mesmo vencida e respeita o mês selecionado', () => {
+    const d = financed();
+    expect(monthly(d, '2026-10').financingPending).toBe(110000);
+    expect(monthly(d, '2026-10').resultAfterFinancing).toBe(390000);
+    expect(monthly(d, '2026-09').financingPending).toBe(0);
+    expect(monthly(d, '2026-11').financingPending).toBe(110000);
+  });
+  it('mantém o resultado após pagar, sem duplicar juros ou parcela', () => {
+    const d = financed();
+    d.debts[0].balance_cents = 900000;
+    d.debts[0].due_date = '2026-11-10';
+    d.debt_payments = [
+      {
+        debt_id: 'car',
+        principal_cents: 100000,
+        interest_cents: 10000,
+        paid_on: '2026-10-10',
+        account_id: 'a',
+      },
+    ];
+    const stats = monthly(d, '2026-10');
+    expect(stats.financingPending).toBe(0);
+    expect(stats.expense).toBe(10000);
+    expect(stats.resultAfterFinancing).toBe(390000);
+  });
+  it('limita a última parcela ao saldo com juros e exclui dívidas quitadas', () => {
+    const d = financed();
+    d.debts[0].balance_cents = 50000;
+    expect(monthly(d, '2026-10').financingPending).toBe(50500);
+    expect(monthly(d, '2026-11').financingPending).toBe(0);
+    d.debts[0].balance_cents = 0;
+    expect(monthly(d, '2026-10').financingPending).toBe(0);
+  });
+  it('inclui parcelas que não cobrem os juros e soma vários financiamentos', () => {
+    const d = financed();
+    d.debts.push({
+      id: 'other',
+      balance_cents: 1000000,
+      rate_bps: 200,
+      payment_cents: 10000,
+      due_date: '2026-10-20',
+    });
+    expect(monthly(d, '2026-10').financingPending).toBe(120000);
+  });
+});

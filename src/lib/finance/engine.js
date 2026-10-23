@@ -172,10 +172,24 @@ export function monthly(data, month) {
     'value',
   );
   const pending = data.transactions.filter((t) => monthOf(t.due_date) === month && !t.canceled);
+  const financingPending = sum(data.debts, (debt) => {
+    if (debt.balance_cents <= 0 || monthOf(debt.due_date) > month) return 0;
+    const schedule = debtSchedule(debt);
+    const installment = schedule.rows.find((row) => monthOf(row.date) === month);
+    // Even a payment that does not cover interest remains a monthly commitment.
+    return installment?.payment ?? (schedule.unpayable ? debt.payment_cents : 0);
+  });
+  const financingPrincipalPaid = sum(
+    data.debt_payments.filter((p) => monthOf(p.paid_on) === month),
+    'principal_cents',
+  );
   return {
     income,
     expense,
     result: income - expense,
+    financingPending,
+    // Paid interest is already in expense. Add only paid principal and unpaid installments.
+    resultAfterFinancing: income - expense - financingPrincipalPaid - financingPending,
     received,
     paid,
     receivable: sum(
