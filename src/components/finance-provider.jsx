@@ -97,7 +97,7 @@ export function FinanceProvider({ children }) {
           open
           onOpenChange={(v) => !v && !busy && setConfirm(null)}
           title={
-            confirm.action === 'delete'
+            confirm.action === 'delete' || confirm.action === 'delete_purchase'
               ? 'Excluir registro?'
               : confirm.action === 'reverse'
                 ? 'Estornar operação?'

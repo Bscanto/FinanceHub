@@ -51,7 +51,9 @@ export function AuthForm({ initialMode = 'login', linkError = false }) {
       else result = await db.auth.signInWithPassword(values);
       if (result.error) {
         setMessage(
-          result.error.code === 'invalid_credentials'
+          result.error.status === 401
+            ? 'A autenticação do aplicativo foi recusada. Verifique a chave pública do Supabase configurada na hospedagem.'
+            : result.error.code === 'invalid_credentials'
             ? 'E-mail ou senha incorretos.'
             : result.error.code === 'email_not_confirmed'
               ? 'Confirme seu e-mail antes de entrar.'

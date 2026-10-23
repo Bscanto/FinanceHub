@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Plus, ArrowLeftRight, CreditCard, Wallet, Ban } from 'lucide-react';
+import { Plus, ArrowLeftRight, CreditCard, Wallet, Ban, Pencil, Trash2 } from 'lucide-react';
 import { useFinance } from './finance-provider';
 import {
   Panel,
@@ -265,7 +265,7 @@ export function Cards({ month }) {
       </Panel>
       <Panel
         title="Compras e parcelamentos"
-        subtitle="Cancele uma compra sem pagamento para removê-la dos cálculos"
+        subtitle="Edite, cancele ou exclua uma compra. Exclusão e cancelamento exigem estorno prévio de pagamentos."
       >
         <DataTable
           rows={data.purchases
@@ -284,24 +284,55 @@ export function Cards({ month }) {
             {
               key: 'action',
               label: 'Ações',
-              render: (p) =>
-                !p.canceled && (
+              render: (p) => (
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  {!p.canceled && (
+                    <Button
+                      variant="ghost"
+                      size="small"
+                      title="Editar compra"
+                      onClick={() => open('update_purchase', p)}
+                    >
+                      <Pencil size={14} />
+                      Editar
+                    </Button>
+                  )}
+                  {!p.canceled && (
+                    <Button
+                      variant="ghost"
+                      size="small"
+                      title="Cancelar compra"
+                      onClick={() =>
+                        destructive(
+                          'cancel',
+                          'purchases',
+                          p.id,
+                          'A compra será cancelada. Faturas já pagas exigem estorno prévio dos pagamentos.',
+                        )
+                      }
+                    >
+                      <Ban size={14} />
+                      Cancelar
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="small"
+                    title="Excluir compra permanentemente"
                     onClick={() =>
                       destructive(
-                        'cancel',
+                        'delete_purchase',
                         'purchases',
                         p.id,
-                        'A compra será cancelada. Faturas já pagas exigem estorno prévio dos pagamentos.',
+                        `Excluir permanentemente "${p.description}"? As parcelas serão removidas. Faturas com pagamentos exigem estorno prévio.`,
                       )
                     }
                   >
-                    <Ban size={14} />
-                    Cancelar
+                    <Trash2 size={14} />
+                    Excluir
                   </Button>
-                ),
+                </div>
+              ),
             },
           ]}
         />

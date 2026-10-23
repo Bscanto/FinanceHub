@@ -1,5 +1,10 @@
 import { today } from './dates';
-const f = (key, label, type = 'text', options) => ({ key, label, type, options });
+const f = (key, label, type = 'text', options) => ({
+  key,
+  label,
+  type,
+  options,
+});
 const account = (key = 'account_id', label = 'Conta') => f(key, label, 'select', 'accounts');
 const category = f('category_id', 'Categoria', 'select', 'categories');
 const description = f('description', 'Descrição');
@@ -62,7 +67,13 @@ export const DEFINITIONS = {
       f('fixed', 'Despesa / receita fixa', 'checkbox'),
       f('notes', 'Observações', 'textarea'),
     ],
-    defaults: { kind: 'expense', amount_cents: 0, fixed: false, method: 'pix', notes: '' },
+    defaults: {
+      kind: 'expense',
+      amount_cents: 0,
+      fixed: false,
+      method: 'pix',
+      notes: '',
+    },
   },
   recurrences: {
     title: 'Recorrência mensal',
@@ -182,6 +193,11 @@ export const DEFINITIONS = {
       f('count', 'Número de parcelas', 'number'),
     ],
     defaults: { count: 1 },
+  },
+  update_purchase: {
+    title: 'Editar compra',
+    action: 'update_purchase',
+    fields: [description, category, f('purchased_on', 'Data da compra', 'date')],
   },
   pay: {
     title: 'Registrar pagamento / recebimento',

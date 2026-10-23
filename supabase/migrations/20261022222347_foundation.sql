@@ -1,138 +1,32 @@
--- FinanceHub: amounts are integer cents. All writes go through an authenticated command boundary.
-create schema if not exists private;
-revoke all on schema private from public, anon;
-grant usage on schema private to authenticated;
-create table public.profiles (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null default '', unique(user_id));
-create policy owner_read on public.profiles for select to authenticated using ((select auth.uid())=user_id);
-create index profiles_owner_idx on public.profiles(user_id);
-grant select on public.profiles to authenticated;
-revoke insert,update,delete on public.profiles from anon,authenticated;
-create table public.accounts (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, institution text not null default '', kind text not null check(kind in ('checking','savings','digital','cash','wallet','investment')), opening_cents bigint not null default 0 check(abs(opening_cents)<=100000000000), opened_on date not null);
-alter table public.accounts enable row level security;
-create policy owner_read on public.accounts for select to authenticated using ((select auth.uid())=user_id);
-create index accounts_owner_idx on public.accounts(user_id);
-grant select on public.accounts to authenticated;
-revoke insert,update,delete on public.accounts from anon,authenticated;
-create table public.categories (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, kind text not null check(kind in ('income','expense')), scope text not null check(scope in ('home','personal','income')), parent_id uuid, unique(user_id,name), foreign key (parent_id,user_id) references public.categories(id,user_id), check(parent_id is null or parent_id<>id));
-alter table public.categories enable row level security;
-create policy owner_read on public.categories for select to authenticated using ((select auth.uid())=user_id);
-create index categories_owner_idx on public.categories(user_id);
-grant select on public.categories to authenticated;
-revoke insert,update,delete on public.categories from anon,authenticated;
-create table public.recurrences (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), description text not null, kind text not null check(kind in ('income','expense')), amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), category_id uuid not null, account_id uuid not null, start_date date not null, end_date date, day integer not null check(day between 1 and 31), active boolean not null default true, foreign key (category_id,user_id) references public.categories(id,user_id), foreign key (account_id,user_id) references public.accounts(id,user_id), check(end_date is null or end_date>=start_date));
-alter table public.recurrences enable row level security;
-create policy owner_read on public.recurrences for select to authenticated using ((select auth.uid())=user_id);
-create index recurrences_owner_idx on public.recurrences(user_id);
-grant select on public.recurrences to authenticated;
-revoke insert,update,delete on public.recurrences from anon,authenticated;
-create table public.transactions (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), description text not null, kind text not null check(kind in ('income','expense')), amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), category_id uuid not null, account_id uuid not null, due_date date not null, competence date not null, fixed boolean not null default false, method text not null default 'pix', notes text not null default '', canceled boolean not null default false, recurrence_id uuid, unique(recurrence_id,due_date), foreign key (category_id,user_id) references public.categories(id,user_id), foreign key (account_id,user_id) references public.accounts(id,user_id), foreign key (recurrence_id,user_id) references public.recurrences(id,user_id));
-alter table public.transactions enable row level security;
-create policy owner_read on public.transactions for select to authenticated using ((select auth.uid())=user_id);
-create index transactions_owner_idx on public.transactions(user_id);
-grant select on public.transactions to authenticated;
-revoke insert,update,delete on public.transactions from anon,authenticated;
-create table public.cards (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, institution text not null default '', limit_cents bigint not null check (limit_cents > 0 and limit_cents <= 100000000000), closing_day integer not null check(closing_day between 1 and 31), due_day integer not null check(due_day between 1 and 31));
-alter table public.cards enable row level security;
-create policy owner_read on public.cards for select to authenticated using ((select auth.uid())=user_id);
-create index cards_owner_idx on public.cards(user_id);
-grant select on public.cards to authenticated;
-revoke insert,update,delete on public.cards from anon,authenticated;
-create table public.purchases (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), description text not null, card_id uuid not null, category_id uuid not null, amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), purchased_on date not null, count integer not null check(count between 1 and 360), canceled boolean not null default false, foreign key (card_id,user_id) references public.cards(id,user_id), foreign key (category_id,user_id) references public.categories(id,user_id));
-alter table public.purchases enable row level security;
-create policy owner_read on public.purchases for select to authenticated using ((select auth.uid())=user_id);
-create index purchases_owner_idx on public.purchases(user_id);
-grant select on public.purchases to authenticated;
-revoke insert,update,delete on public.purchases from anon,authenticated;
-create table public.invoices (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), card_id uuid not null, due_date date not null, unique(card_id,due_date), foreign key (card_id,user_id) references public.cards(id,user_id));
-alter table public.invoices enable row level security;
-create policy owner_read on public.invoices for select to authenticated using ((select auth.uid())=user_id);
-create index invoices_owner_idx on public.invoices(user_id);
-grant select on public.invoices to authenticated;
-revoke insert,update,delete on public.invoices from anon,authenticated;
-create table public.installments (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), purchase_id uuid not null, invoice_id uuid not null, number integer not null, amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), unique(purchase_id,number), foreign key (purchase_id,user_id) references public.purchases(id,user_id), foreign key (invoice_id,user_id) references public.invoices(id,user_id));
-alter table public.installments enable row level security;
-create policy owner_read on public.installments for select to authenticated using ((select auth.uid())=user_id);
-create index installments_owner_idx on public.installments(user_id);
-grant select on public.installments to authenticated;
-revoke insert,update,delete on public.installments from anon,authenticated;
-create table public.payments (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), transaction_id uuid, invoice_id uuid, account_id uuid not null, amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), paid_on date not null, request_id uuid not null, unique(user_id,request_id), check(num_nonnulls(transaction_id,invoice_id)=1), foreign key (transaction_id,user_id) references public.transactions(id,user_id), foreign key (invoice_id,user_id) references public.invoices(id,user_id), foreign key (account_id,user_id) references public.accounts(id,user_id));
-alter table public.payments enable row level security;
-create policy owner_read on public.payments for select to authenticated using ((select auth.uid())=user_id);
-create index payments_owner_idx on public.payments(user_id);
-grant select on public.payments to authenticated;
-revoke insert,update,delete on public.payments from anon,authenticated;
-create table public.transfers (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), source_id uuid not null, destination_id uuid not null, amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), transferred_on date not null, check(source_id<>destination_id), foreign key (source_id,user_id) references public.accounts(id,user_id), foreign key (destination_id,user_id) references public.accounts(id,user_id));
-alter table public.transfers enable row level security;
-create policy owner_read on public.transfers for select to authenticated using ((select auth.uid())=user_id);
-create index transfers_owner_idx on public.transfers(user_id);
-grant select on public.transfers to authenticated;
-revoke insert,update,delete on public.transfers from anon,authenticated;
-create table public.budgets (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), category_id uuid not null, month date not null check(extract(day from month)=1), limit_cents bigint not null check (limit_cents > 0 and limit_cents <= 100000000000), unique(user_id,category_id,month), foreign key (category_id,user_id) references public.categories(id,user_id));
-alter table public.budgets enable row level security;
-create policy owner_read on public.budgets for select to authenticated using ((select auth.uid())=user_id);
-create index budgets_owner_idx on public.budgets(user_id);
-grant select on public.budgets to authenticated;
-revoke insert,update,delete on public.budgets from anon,authenticated;
-create table public.goals (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, target_cents bigint not null check (target_cents > 0 and target_cents <= 100000000000), saved_cents bigint not null check (saved_cents >= 0 and saved_cents <= 100000000000), deadline date not null, check(saved_cents<=target_cents));
-alter table public.goals enable row level security;
-create policy owner_read on public.goals for select to authenticated using ((select auth.uid())=user_id);
-create index goals_owner_idx on public.goals(user_id);
-grant select on public.goals to authenticated;
-revoke insert,update,delete on public.goals from anon,authenticated;
-create table public.debts (balance_on date not null default current_date, id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, original_cents bigint not null check (original_cents > 0 and original_cents <= 100000000000), balance_cents bigint not null check (balance_cents >= 0 and balance_cents <= 100000000000), rate_bps integer not null check(rate_bps between 0 and 10000), payment_cents bigint not null check (payment_cents > 0 and payment_cents <= 100000000000), due_date date not null, installments integer not null check(installments between 1 and 600));
-alter table public.debts enable row level security;
-create policy owner_read on public.debts for select to authenticated using ((select auth.uid())=user_id);
-create index debts_owner_idx on public.debts(user_id);
-grant select on public.debts to authenticated;
-revoke insert,update,delete on public.debts from anon,authenticated;
-create table public.debt_payments (previous_due_date date not null, next_due_date date not null, id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), debt_id uuid not null, account_id uuid not null, principal_cents bigint not null check (principal_cents > 0 and principal_cents <= 100000000000), interest_cents bigint not null check (interest_cents >= 0 and interest_cents <= 100000000000), paid_on date not null, request_id uuid not null, unique(user_id,request_id), foreign key (debt_id,user_id) references public.debts(id,user_id), foreign key (account_id,user_id) references public.accounts(id,user_id));
-alter table public.debt_payments enable row level security;
-create policy owner_read on public.debt_payments for select to authenticated using ((select auth.uid())=user_id);
-create index debt_payments_owner_idx on public.debt_payments(user_id);
-grant select on public.debt_payments to authenticated;
-revoke insert,update,delete on public.debt_payments from anon,authenticated;
-create table public.investments (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, kind text not null, opening_cents bigint not null check (opening_cents >= 0 and opening_cents <= 100000000000), opened_on date not null, emergency boolean not null default false);
-alter table public.investments enable row level security;
-create policy owner_read on public.investments for select to authenticated using ((select auth.uid())=user_id);
-create index investments_owner_idx on public.investments(user_id);
-grant select on public.investments to authenticated;
-revoke insert,update,delete on public.investments from anon,authenticated;
-create table public.investment_events (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), investment_id uuid not null, account_id uuid, kind text not null check(kind in ('deposit','withdrawal','yield')), amount_cents bigint not null check (amount_cents > 0 and amount_cents <= 100000000000), event_date date not null, request_id uuid not null, unique(user_id,request_id), check(kind='yield' or account_id is not null), foreign key (investment_id,user_id) references public.investments(id,user_id), foreign key (account_id,user_id) references public.accounts(id,user_id));
-alter table public.investment_events enable row level security;
-create policy owner_read on public.investment_events for select to authenticated using ((select auth.uid())=user_id);
-create index investment_events_owner_idx on public.investment_events(user_id);
-grant select on public.investment_events to authenticated;
-revoke insert,update,delete on public.investment_events from anon,authenticated;
-create table public.assets (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, value_cents bigint not null check (value_cents >= 0 and value_cents <= 100000000000), valued_on date not null);
-alter table public.assets enable row level security;
-create policy owner_read on public.assets for select to authenticated using ((select auth.uid())=user_id);
-create index assets_owner_idx on public.assets(user_id);
-grant select on public.assets to authenticated;
-revoke insert,update,delete on public.assets from anon,authenticated;
-create table public.scenarios (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), name text not null, income_bps integer not null default 10000 check(income_bps between 0 and 30000), expense_bps integer not null default 10000 check(expense_bps between 0 and 30000), income_delta_cents bigint not null default 0 check(abs(income_delta_cents)<=100000000000), expense_delta_cents bigint not null default 0 check(abs(expense_delta_cents)<=100000000000), purchase_cents bigint not null default 0 check(purchase_cents between 0 and 100000000000), installments integer not null default 1 check(installments between 1 and 360));
-alter table public.scenarios enable row level security;
-create policy owner_read on public.scenarios for select to authenticated using ((select auth.uid())=user_id);
-create index scenarios_owner_idx on public.scenarios(user_id);
-grant select on public.scenarios to authenticated;
-revoke insert,update,delete on public.scenarios from anon,authenticated;
-create table public.notifications (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, created_at timestamptz not null default now(), unique(id,user_id), message text not null, read boolean not null default false);
-alter table public.notifications enable row level security;
-create policy owner_read on public.notifications for select to authenticated using ((select auth.uid())=user_id);
-create index notifications_owner_idx on public.notifications(user_id);
-grant select on public.notifications to authenticated;
-revoke insert,update,delete on public.notifications from anon,authenticated;
-create index transactions_period_idx on public.transactions(user_id,competence);
-create index transactions_due_idx on public.transactions(user_id,due_date);
-create index payments_transaction_idx on public.payments(transaction_id);
-create index payments_invoice_idx on public.payments(invoice_id);
-create index installments_invoice_idx on public.installments(invoice_id);
-create index debt_payments_debt_idx on public.debt_payments(debt_id);
-create index investment_events_asset_idx on public.investment_events(investment_id);
-create or replace function private.month_day(d date, n integer, target integer) returns date language sql immutable set search_path='' as $$
- select (date_trunc('month', d) + make_interval(months=>n))::date + least(target,extract(day from (date_trunc('month',d)+make_interval(months=>n+1)-interval '1 day'))::integer)-1;
-$$;
--- This private definer is the only write boundary. It requires auth.uid(), forces ownership,
--- uses an allowlist and quoted identifiers, and never accepts arbitrary SQL or user_id.
+Claude
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+20261022222348 purchase edit delete · SQL
+-- Migration 20261022222348: adiciona 'delete_purchase' e 'update_purchase' ao finance_command.
+--
+-- delete_purchase → remove fisicamente a compra e suas parcelas.
+--                   Bloqueado se houver pagamentos nas faturas que contenham parcelas desta compra.
+-- update_purchase → atualiza descrição, categoria e data da compra.
+--                   Valor e número de parcelas não são alterados para preservar a integridade
+--                   das faturas e parcelas já existentes.
+ 
 create or replace function private.finance_command(p_action text, p_entity text, p_data jsonb, p_id uuid)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
@@ -266,6 +160,37 @@ begin
    if result is null then raise exception 'Registro não encontrado'; end if;
    return result;
  end if;
+ -- ── NOVO: excluir compra ────────────────────────────────────────────────────
+ if p_action='delete_purchase' then
+   select * into purchase from public.purchases where id=p_id and user_id=u;
+   if not found then raise exception 'Compra não encontrada' using errcode='P0002'; end if;
+   if exists(
+     select 1 from public.installments i
+     join public.payments p on p.invoice_id=i.invoice_id
+     where i.purchase_id=p_id and p.user_id=u
+   ) then raise exception 'Estorne os pagamentos das faturas antes de excluir a compra.'; end if;
+   delete from public.installments where purchase_id=p_id and user_id=u;
+   delete from public.purchases where id=p_id and user_id=u returning to_jsonb(purchases.*) into result;
+   if result is null then raise exception 'Erro ao excluir compra'; end if;
+   return result;
+ end if;
+ -- ── NOVO: editar compra ─────────────────────────────────────────────────────
+ if p_action='update_purchase' then
+   select * into purchase from public.purchases where id=p_id and user_id=u;
+   if not found then raise exception 'Compra não encontrada' using errcode='P0002'; end if;
+   if purchase.canceled then raise exception 'Compra cancelada não pode ser editada.'; end if;
+   if not exists(
+     select 1 from public.categories
+     where id=(p_data->>'category_id')::uuid and user_id=u and kind='expense'
+   ) then raise exception 'Categoria inválida'; end if;
+   update public.purchases set
+     description  = coalesce(nullif(trim(p_data->>'description'),''), purchase.description),
+     category_id  = coalesce((p_data->>'category_id')::uuid, purchase.category_id),
+     purchased_on = coalesce((p_data->>'purchased_on')::date, purchase.purchased_on)
+   where id=p_id and user_id=u returning to_jsonb(purchases.*) into result;
+   if result is null then raise exception 'Erro ao atualizar compra'; end if;
+   return result;
+ end if;
  if p_action='amortize' then
    select to_jsonb(p) into result from public.debt_payments p where user_id=u and request_id=p_id;
    if result is not null then return result; end if;
@@ -315,42 +240,4 @@ end;
 $$;
 revoke all on function private.finance_command(text,text,jsonb,uuid) from public,anon;
 grant execute on function private.finance_command(text,text,jsonb,uuid) to authenticated;
-revoke all on function private.month_day(date,integer,integer) from public,anon;
-create or replace function public.finance_command(p_action text,p_entity text default '',p_data jsonb default '{}',p_id uuid default null)
-returns jsonb language sql security invoker set search_path='' as $$ select private.finance_command(p_action,p_entity,p_data,p_id); $$;
-revoke all on function public.finance_command(text,text,jsonb,uuid) from public,anon;
-grant execute on function public.finance_command(text,text,jsonb,uuid) to authenticated;
-
-create or replace function public.finance_snapshot() returns jsonb language sql stable security invoker set search_path='' as $$ select jsonb_build_object(
-'profiles',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.profiles t where user_id=(select auth.uid())),
-'accounts',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.accounts t where user_id=(select auth.uid())),
-'categories',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.categories t where user_id=(select auth.uid())),
-'recurrences',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.recurrences t where user_id=(select auth.uid())),
-'transactions',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.transactions t where user_id=(select auth.uid())),
-'cards',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.cards t where user_id=(select auth.uid())),
-'purchases',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.purchases t where user_id=(select auth.uid())),
-'invoices',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.invoices t where user_id=(select auth.uid())),
-'installments',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.installments t where user_id=(select auth.uid())),
-'payments',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.payments t where user_id=(select auth.uid())),
-'transfers',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.transfers t where user_id=(select auth.uid())),
-'budgets',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.budgets t where user_id=(select auth.uid())),
-'goals',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.goals t where user_id=(select auth.uid())),
-'debts',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.debts t where user_id=(select auth.uid())),
-'debt_payments',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.debt_payments t where user_id=(select auth.uid())),
-'investments',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.investments t where user_id=(select auth.uid())),
-'investment_events',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.investment_events t where user_id=(select auth.uid())),
-'assets',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.assets t where user_id=(select auth.uid())),
-'scenarios',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.scenarios t where user_id=(select auth.uid())),
-'notifications',(select coalesce(jsonb_agg(t order by t.created_at,t.id),'[]'::jsonb) from public.notifications t where user_id=(select auth.uid()))); $$;
-revoke all on function public.finance_snapshot() from public,anon;
-grant execute on function public.finance_snapshot() to authenticated;
-
--- Harden direct RPC callers as well as the validated HTTP API.
-do $$ declare c record; begin
- for c in select table_name,column_name from information_schema.columns where table_schema='public' and data_type='date' loop
-   execute format('alter table public.%I add check (%I between date ''1900-01-01'' and date ''2100-12-31'')',c.table_name,c.column_name);
- end loop;
- for c in select table_name,column_name from information_schema.columns where table_schema='public' and data_type='text' loop
-   execute format('alter table public.%I add check (length(%I)<=2000)',c.table_name,c.column_name);
- end loop;
-end $$;
+ 

@@ -117,6 +117,11 @@ export const schemas = {
       count: z.number().int().min(1).max(360),
     })
     .refine((v) => v.amount_cents >= v.count, 'Parcelas menores que um centavo'),
+  update_purchase: z.object({
+    description: text,
+    category_id: id,
+    purchased_on: date,
+  }),
   pay: z
     .object({
       transaction_id: nullableId,
@@ -161,6 +166,8 @@ export const commandSchema = z.object({
     'reverse',
     'amortize',
     'invest',
+    'delete_purchase',
+    'update_purchase',
   ]),
   entity: z.string().default(''),
   id: id.nullable().default(null),
@@ -170,9 +177,16 @@ export function validateCommand(input) {
   const command = commandSchema.parse(input);
   const key = ['create', 'update'].includes(command.action) ? command.entity : command.action;
   if (
-    ['create', 'update', 'purchase', 'pay', 'amortize', 'invest', 'generate'].includes(
-      command.action,
-    )
+    [
+      'create',
+      'update',
+      'purchase',
+      'pay',
+      'amortize',
+      'invest',
+      'generate',
+      'update_purchase',
+    ].includes(command.action)
   ) {
     if (!schemas[key]) throw new Error('Operação inválida');
     command.data = schemas[key].parse(command.data);
